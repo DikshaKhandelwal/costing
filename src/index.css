@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-base antialiased;
+    font-size: 16px;
+  }
+  
+  h1 {
+    @apply text-4xl font-bold;
+  }
+  
+  h2 {
+    @apply text-3xl font-bold;
+  }
+  
+  h3 {
+    @apply text-2xl font-semibold;
+  }
+  
+  h4 {
+    @apply text-xl font-semibold;
+  }
+  
+  p {
+    @apply text-lg;
+  }
+  
+  label {
+    @apply text-base font-semibold;
+  }
+  
+  input, select, textarea {
+    @apply text-base;
+  }
+  
+  button {
+    @apply text-base font-semibold;
+  }
+}
+
+@layer utilities {
+  .wood-grain {
+    background-image: 
+      linear-gradient(90deg, rgba(139, 69, 19, .03) 1px, transparent 1px),
+      linear-gradient(rgba(139, 69, 19, .03) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+  
+  .furniture-shadow {
+    box-shadow: 0 10px 25px rgba(139, 69, 19, 0.15);
+  }
+}
