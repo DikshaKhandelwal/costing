@@ -49,59 +49,61 @@ export default function ProductEditor({ productId, onBack }: ProductEditorProps)
     const { data: productData } = await supabase
       .from('products')
       .select('*')
-      .eq('product_id', productId)
+      .eq('id', productId)
       .single();
 
     if (productData) {
       setProduct(productData);
       setStep(2);
-    }
 
-    // @ts-ignore
-    const { data: componentsData } = await supabase
-      .from('components')
-      .select('*')
-      .eq('product_id', productId)
-      .order('sort_order');
-
-    if (componentsData) {
       // @ts-ignore
-      const components: any[] = componentsData;
-      setComponents(components.map(c => ({
-        id: c.id,
-        description: c.description,
-        length: c.length,
-        width: c.width,
-        height: c.height,
-        pieces: c.pieces,
-        cft: c.cft,
-        rate: c.rate,
-        material_id: c.material_id
-      })));
-    }
+      const { data: componentsData } = await supabase
+        .from('components')
+        .select('*')
+        // @ts-ignore
+        .eq('product_id', productData.id)
+        .order('sort_order');
 
-    // @ts-ignore
-    const { data: extrasData } = await supabase
-      .from('product_extras')
-      .select('*')
-      .eq('product_id', productId)
-      .maybeSingle();
+      if (componentsData) {
+        // @ts-ignore
+        const components: any[] = componentsData;
+        setComponents(components.map(c => ({
+          id: c.id,
+          description: c.description,
+          length: c.length,
+          width: c.width,
+          height: c.height,
+          pieces: c.pieces,
+          cft: c.cft,
+          rate: c.rate,
+          material_id: c.material_id
+        })));
+      }
 
-    if (extrasData) {
       // @ts-ignore
-      const extras: any = extrasData;
-      setExtras({
-        labour: extras.labour,
-        polish: extras.polish,
-        hardware: extras.hardware,
-        cnc: extras.cnc,
-        foam: extras.foam,
-        iron_weight: extras.iron_weight,
-        iron_rate: extras.iron_rate,
-        ma_percentage: extras.ma_percentage,
-        profit_percentage: extras.profit_percentage,
-        gst_percentage: extras.gst_percentage
-      });
+      const { data: extrasData } = await supabase
+        .from('product_extras')
+        .select('*')
+        // @ts-ignore
+        .eq('product_id', productData.id)
+        .maybeSingle();
+
+      if (extrasData) {
+        // @ts-ignore
+        const extras: any = extrasData;
+        setExtras({
+          labour: extras.labour,
+          polish: extras.polish,
+          hardware: extras.hardware,
+          cnc: extras.cnc,
+          foam: extras.foam,
+          iron_weight: extras.iron_weight,
+          iron_rate: extras.iron_rate,
+          ma_percentage: extras.ma_percentage,
+          profit_percentage: extras.profit_percentage,
+          gst_percentage: extras.gst_percentage
+        });
+      }
     }
   }
 
