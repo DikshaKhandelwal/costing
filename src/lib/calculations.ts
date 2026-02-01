@@ -102,13 +102,14 @@ export function calculateActualDimensions(
 export function calculateFeet(
   length: number | null,
   width: number | null,
-  pieces: number
+  pieces: number,
+  component?: Component
 ): number {
   if (!length || !width) return 0;
   
-  // Apply wastage calculations
-  const actualLength = roundToAvailableSize(length).size;
-  const actualWidth = applyWidthWastage(width);
+  // Use actual dimensions (with manual overrides if provided)
+  const actualLength = component?.actualLength ?? roundToAvailableSize(length).size;
+  const actualWidth = component?.actualWidth ?? applyWidthWastage(width);
   
   return (actualLength * actualWidth / 144) * pieces;
 }
@@ -117,12 +118,18 @@ export function calculateCFT(
   length: number | null,
   width: number | null,
   height: number | null,
-  pieces: number
+  pieces: number,
+  component?: Component
 ): number {
   if (!length || !width || !height) return 0;
   
-  // Apply wastage calculations
-  const { actualLength, actualWidth, actualHeight } = calculateActualDimensions(length, width, height);
+  // Apply wastage calculations with manual overrides if provided
+  const { actualLength, actualWidth, actualHeight } = calculateActualDimensions(
+    length, 
+    width, 
+    height,
+    component
+  );
   
   // CFT = (Square Feet × Thickness in inches) / 12
   // Square Feet = (Length × Width) / 144
@@ -135,7 +142,7 @@ export function calculateCFT(
 export function calculateComponentTotal(component: Component): number {
   const cft = component.cft !== null
     ? component.cft
-    : calculateCFT(component.length, component.width, component.height, component.pieces);
+    : calculateCFT(component.length, component.width, component.height, component.pieces, component);
   return cft * component.rate;
 }
 

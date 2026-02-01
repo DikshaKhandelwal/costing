@@ -122,11 +122,11 @@ export default function ComponentsTable({ components, onChange }: ComponentsTabl
     if (component.cft !== null) {
       return component.cft;
     }
-    return calculateCFT(component.length, component.width, component.height, component.pieces);
+    return calculateCFT(component.length, component.width, component.height, component.pieces, component);
   }
 
   function getCalculatedFeet(component: Component): number {
-    return calculateFeet(component.length, component.width, component.pieces);
+    return calculateFeet(component.length, component.width, component.pieces, component);
   }
 
   // Helper to show wastage info as tooltip
@@ -288,7 +288,7 @@ H: ${component.height}" (thickness as-is)`;
                       step="0.0001"
                       value={component.cft !== null ? component.cft : ''}
                       onChange={(e) => updateComponent(index, 'cft', e.target.value ? parseFloat(e.target.value) : null)}
-                      placeholder={formatNumber(calculateCFT(component.length, component.width, component.height, component.pieces), 4)}
+                      placeholder={formatNumber(calculateCFT(component.length, component.width, component.height, component.pieces, component), 4)}
                       className="w-24 px-2 py-1.5 text-sm text-center border border-gray-300 rounded focus:ring-2 focus:ring-stone-500 focus:border-stone-500 font-mono"
                       title={getWastageInfo(component) || "Leave empty for auto-calculation or enter manual CFT"}
                     />
