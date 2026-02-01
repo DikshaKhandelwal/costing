@@ -110,8 +110,9 @@ export function calculateFeet(
   // Use actual dimensions (with manual overrides if provided)
   const actualLength = component?.actualLength ?? roundToAvailableSize(length).size;
   const actualWidth = component?.actualWidth ?? applyWidthWastage(width);
+  const actualHeight = component?.actualHeight ?? component?.height ?? 0;
   
-  return (actualLength * actualWidth / 144) * pieces;
+  return (actualLength * actualWidth * actualHeight / 144) * pieces;
 }
 
 export function calculateCFT(
