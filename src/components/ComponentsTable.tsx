@@ -55,7 +55,8 @@ export default function ComponentsTable({ components, onChange }: ComponentsTabl
     const { actualLength, actualWidth, actualHeight } = calculateActualDimensions(
       component.length,
       component.width,
-      component.height
+      component.height,
+      component // Pass component for manual overrides
     );
 
     // Use the longest face dimension (length or width) to pick the size bracket
@@ -135,7 +136,8 @@ export default function ComponentsTable({ components, onChange }: ComponentsTabl
     const { actualLength, actualWidth, actualHeight } = calculateActualDimensions(
       component.length,
       component.width,
-      component.height
+      component.height,
+      component
     );
 
     const hasWastage = 
@@ -149,19 +151,6 @@ export default function ComponentsTable({ components, onChange }: ComponentsTabl
 L: ${component.length}" → ${formatNumber(actualLength, 1)}" (rounded to available size)
 W: ${component.width}" → ${formatNumber(actualWidth, 1)}" (+20% wastage)
 H: ${component.height}" (thickness as-is)`;
-  }
-
-  // Helper to get short wastage display for inline
-  function getWastageDisplay(component: Component): string {
-    if (!component.length || !component.width || !component.height) return '';
-    
-    const { actualLength, actualWidth, actualHeight } = calculateActualDimensions(
-      component.length,
-      component.width,
-      component.height
-    );
-
-    return `${formatNumber(actualLength, 0)}" × ${formatNumber(actualWidth, 0)}" × ${formatNumber(actualHeight, 1)}"`;
   }
 
   const totalCFT = components.reduce((sum, comp) => sum + getCalculatedCFT(comp), 0);
@@ -194,7 +183,9 @@ H: ${component.height}" (thickness as-is)`;
               <th className="text-center py-3 px-3 text-xs font-semibold text-gray-700 uppercase">W</th>
               <th className="text-center py-3 px-3 text-xs font-semibold text-gray-700 uppercase">H</th>
               <th className="text-center py-3 px-3 text-xs font-semibold text-gray-700 uppercase">Pcs</th>
-              <th className="text-center py-3 px-3 text-xs font-semibold text-gray-700 uppercase" title="Actual dimensions after wastage">Actual</th>
+              <th className="text-center py-3 px-3 text-xs font-semibold text-gray-700 uppercase" title="Actual length after wastage">Act L</th>
+              <th className="text-center py-3 px-3 text-xs font-semibold text-gray-700 uppercase" title="Actual width after wastage">Act W</th>
+              <th className="text-center py-3 px-3 text-xs font-semibold text-gray-700 uppercase" title="Actual thickness">Act H</th>
               <th className="text-center py-3 px-3 text-xs font-semibold text-gray-700 uppercase">Feet</th>
               <th className="text-center py-3 px-3 text-xs font-semibold text-gray-700 uppercase">CFT</th>
               <th className="text-left py-3 px-3 text-xs font-semibold text-gray-700 uppercase">Material</th>
@@ -254,12 +245,38 @@ H: ${component.height}" (thickness as-is)`;
                     className="w-16 px-2 py-1.5 text-sm text-center border border-gray-300 rounded focus:ring-2 focus:ring-stone-500 focus:border-stone-500"
                   />
                 </td>
-                <td className="py-2 px-3 text-xs text-center text-gray-600 font-mono" title={getWastageInfo(component)}>
-                  {getWastageDisplay(component) ? (
-                    <span className="text-orange-600 font-semibold">{getWastageDisplay(component)}</span>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
+                <td className="py-2 px-3">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={component.actualLength || ''}
+                    onChange={(e) => updateComponent(index, 'actualLength', e.target.value ? parseFloat(e.target.value) : null)}
+                    placeholder={component.length ? formatNumber(calculateActualDimensions(component.length, component.width, component.height, component).actualLength, 1) : ''}
+                    className="w-20 px-2 py-1.5 text-sm text-center border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-orange-50"
+                    title="Override calculated actual length"
+                  />
+                </td>
+                <td className="py-2 px-3">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={component.actualWidth || ''}
+                    onChange={(e) => updateComponent(index, 'actualWidth', e.target.value ? parseFloat(e.target.value) : null)}
+                    placeholder={component.width ? formatNumber(calculateActualDimensions(component.length, component.width, component.height, component).actualWidth, 1) : ''}
+                    className="w-20 px-2 py-1.5 text-sm text-center border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-orange-50"
+                    title="Override calculated actual width"
+                  />
+                </td>
+                <td className="py-2 px-3">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={component.actualHeight || ''}
+                    onChange={(e) => updateComponent(index, 'actualHeight', e.target.value ? parseFloat(e.target.value) : null)}
+                    placeholder={component.height ? formatNumber(component.height, 1) : ''}
+                    className="w-20 px-2 py-1.5 text-sm text-center border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-orange-50"
+                    title="Override calculated actual thickness"
+                  />
                 </td>
                 <td className="py-2 px-3 text-sm text-center text-gray-700 font-mono">
                   {formatNumber(getCalculatedFeet(component), 2)}
@@ -319,7 +336,7 @@ H: ${component.height}" (thickness as-is)`;
             ))}
             {components.length === 0 && (
               <tr>
-                <td colSpan={11} className="py-8 text-center text-gray-500">
+                <td colSpan={13} className="py-8 text-center text-gray-500">
                   No components added yet. Click "Add Row" to start.
                 </td>
               </tr>
@@ -328,7 +345,7 @@ H: ${component.height}" (thickness as-is)`;
           {components.length > 0 && (
             <tfoot className="bg-gray-50 font-semibold">
               <tr>
-                <td colSpan={6} className="py-3 px-3 text-right text-sm text-gray-900">
+                <td colSpan={8} className="py-3 px-3 text-right text-sm text-gray-900">
                   TOTALS:
                 </td>
                 <td className="py-3 px-3 text-sm text-center text-gray-900 font-mono">

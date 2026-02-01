@@ -185,7 +185,7 @@ export default function MaterialPriceTiers({ material, onClose }: MaterialPriceT
             <h3 className="text-lg font-semibold text-stone-900 mb-4">Add Price Tier</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Min Size (inches)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Min Size (feet)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -196,7 +196,7 @@ export default function MaterialPriceTiers({ material, onClose }: MaterialPriceT
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Max Size (inches)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Max Size (feet)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -270,7 +270,7 @@ export default function MaterialPriceTiers({ material, onClose }: MaterialPriceT
                   tiers.map((tier) => (
                     <tr key={tier.id} className="border-b border-stone-200 hover:bg-stone-50">
                       <td className="py-3 px-4 text-sm font-semibold text-stone-900">
-                        {tier.min_size}" - {tier.max_size}"
+                        {tier.min_size}' - {tier.max_size}'
                       </td>
                       <td className="py-3 px-4 text-sm text-center text-stone-800">
                         {tier.thickness}"

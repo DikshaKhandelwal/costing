@@ -8,6 +8,9 @@ export interface Component {
   cft: number | null;
   rate: number;
   material_id?: string | null;
+  actualLength?: number | null;
+  actualWidth?: number | null;
+  actualHeight?: number | null;
 }
 
 export interface Extras {
@@ -66,46 +69,32 @@ export function roundToAvailableSize(inches: number): { size: number; skipped: b
 
 /**
  * Apply 20% wastage margin to width
- * First round to available size
- * If we skipped a size (due to <2" diff), don't add 20% (skip already accounts for wastage)
- * If we didn't skip, add 20% wastage
+ * Simply adds 20% to the input width, no rounding to available sizes
  * 
- * Example 1: 15" -> 18" (no skip) -> 21.6" (with 20%)
- * Example 2: 17" -> 18" -> 24" (skipped) -> 24" (no additional 20%)
+ * Example: 15" -> 18" (15 * 1.2)
  */
 export function applyWidthWastage(width: number): number {
-  const { size: roundedWidth, skipped } = roundToAvailableSize(width);
-  
-  // If we skipped to next size, that already accounts for wastage
-  if (skipped) {
-    return roundedWidth;
-  }
-  
-  // Otherwise, add 20% wastage
-  return roundedWidth * 1.2;
+  return width * 1.2;
 }
 
 /**
  * Calculate actual dimensions considering wastage and wood availability
+ * Can accept a component object to use manual overrides if provided
  */
 export function calculateActualDimensions(
   length: number | null,
   width: number | null,
-  height: number | null
+  height: number | null,
+  component?: Component
 ): { actualLength: number; actualWidth: number; actualHeight: number } {
   if (!length || !width || !height) {
     return { actualLength: 0, actualWidth: 0, actualHeight: 0 };
   }
 
-  // Length: Round up to next available size (1', 1.5', 2', 2.5', etc.)
-  const actualLength = roundToAvailableSize(length).size;
-  
-  // Width: Apply 20% wastage margin (handles rounding internally)
-  const actualWidth = applyWidthWastage(width);
-  
-  // Height (thickness): Use as-is, don't round up
-  // Thickness is material property, not length to purchase
-  const actualHeight = height;
+  // Use manual overrides if provided, otherwise calculate
+  const actualLength = component?.actualLength ?? roundToAvailableSize(length).size;
+  const actualWidth = component?.actualWidth ?? applyWidthWastage(width);
+  const actualHeight = component?.actualHeight ?? height;
 
   return { actualLength, actualWidth, actualHeight };
 }
