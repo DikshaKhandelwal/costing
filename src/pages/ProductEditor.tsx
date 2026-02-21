@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Database } from '../lib/database.types';
 import ProductForm from '../components/ProductForm';
@@ -202,6 +202,21 @@ export default function ProductEditor({ productId, onBack }: ProductEditorProps)
   }
 
   const summary = calculateCostSummary(components, extras);
+  const [isImageOpen, setIsImageOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+
+  useEffect(() => {
+    if (!isImageOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setIsImageOpen(false);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isImageOpen]);
+
+  function clamp(v: number) {
+    return Math.min(3, Math.max(0.5, v));
+  }
 
   if (step === 1) {
     return (
@@ -254,16 +269,87 @@ export default function ProductEditor({ productId, onBack }: ProductEditorProps)
 
       {product && (
         <div className="bg-stone-200 rounded-lg p-6 border border-stone-300">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{product.name}</h1>
-          <div className="flex flex-wrap gap-4 text-sm text-gray-700">
-            <span className="font-medium">{product.product_type}</span>
-            {product.reference_number && <span>Ref: {product.reference_number}</span>}
-            {(product.overall_length || product.overall_width || product.overall_height) && (
-              <span>
-                Size: {product.overall_length || 0} × {product.overall_width || 0} × {product.overall_height || 0}"
-              </span>
-            )}
-            {product.designer_name && <span>Designer: {product.designer_name}</span>}
+          <div className="flex items-start gap-6">
+            {product.image_url ? (
+              <div className="w-36 h-36 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border cursor-zoom-in">
+                <img
+                  src={product.image_url}
+                  alt={`${product.name} image`}
+                  className="w-full h-full object-contain"
+                  onClick={() => { setIsImageOpen(true); setZoom(1); }}
+                />
+              </div>
+            ) : null}
+
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">{product.name}</h1>
+              <div className="flex flex-wrap gap-4 text-sm text-gray-700">
+                <span className="font-medium">{product.product_type}</span>
+                {product.reference_number && <span>Ref: {product.reference_number}</span>}
+                {(product.overall_length || product.overall_width || product.overall_height) && (
+                  <span>
+                    Size: {product.overall_length || 0} × {product.overall_width || 0} × {product.overall_height || 0}"
+                  </span>
+                )}
+                {product.designer_name && <span>Designer: {product.designer_name}</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Zoom Modal */}
+      {isImageOpen && product?.image_url && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4">
+          <div className="relative max-w-[95%] max-h-[95%] flex items-center">
+            <button
+              onClick={() => setIsImageOpen(false)}
+              className="absolute top-2 right-2 z-20 p-2 bg-white/90 rounded-full hover:bg-white shadow-lg"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="absolute left-2 top-2 z-20 flex gap-2">
+              <button
+                onClick={() => setZoom((z) => clamp(Number((z - 0.1).toFixed(2))))}
+                className="p-2 bg-white/90 rounded-full hover:bg-white shadow-lg"
+                aria-label="Zoom out"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setZoom((z) => clamp(Number((z + 0.1).toFixed(2))))}
+                className="p-2 bg-white/90 rounded-full hover:bg-white shadow-lg"
+                aria-label="Zoom in"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setZoom(1)}
+                className="p-2 bg-white/90 rounded-full hover:bg-white shadow-lg"
+                aria-label="Reset zoom"
+              >
+                Reset
+              </button>
+            </div>
+
+            <div
+              className="flex items-center justify-center overflow-auto"
+              onWheel={(e) => {
+                e.preventDefault();
+                const delta = (e.deltaY || e.detail) > 0 ? -0.1 : 0.1;
+                setZoom((z) => clamp(Number((z + delta).toFixed(2))));
+              }}
+            >
+              <img
+                src={product.image_url}
+                alt={`${product.name} zoom`}
+                style={{ transform: `scale(${zoom})`, transformOrigin: 'center', transition: 'transform 120ms linear' }}
+                className="max-w-[90vw] max-h-[90vh] object-contain"
+                onDoubleClick={() => setZoom(1)}
+              />
+            </div>
           </div>
         </div>
       )}

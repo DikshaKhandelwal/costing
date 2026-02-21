@@ -16,7 +16,8 @@ export default function MaterialMaster() {
     name: '',
     rate_per_cft: '',
     description: '',
-    is_active: true
+    is_active: true,
+    is_rate_per_sqft: false
   });
 
   useEffect(() => {
@@ -48,7 +49,8 @@ export default function MaterialMaster() {
       name: formData.name,
       rate_per_cft: formData.rate_per_cft ? parseFloat(formData.rate_per_cft) : 0,
       description: formData.description || null,
-      is_active: formData.is_active
+      is_active: formData.is_active,
+      is_rate_per_sqft: !!formData.is_rate_per_sqft
     };
 
     if (editingId) {
@@ -102,7 +104,8 @@ export default function MaterialMaster() {
       name: '',
       rate_per_cft: '',
       description: '',
-      is_active: true
+      is_active: true,
+      is_rate_per_sqft: false
     });
   }
 
@@ -112,7 +115,9 @@ export default function MaterialMaster() {
       name: material.name,
       rate_per_cft: material.rate_per_cft.toString(),
       description: material.description || '',
-      is_active: material.is_active
+      is_active: material.is_active,
+      // material may have the new property; use any to avoid TS errors if missing
+      is_rate_per_sqft: !!(material as any).is_rate_per_sqft
     });
     setIsAdding(false);
   }
@@ -178,7 +183,7 @@ export default function MaterialMaster() {
               </div>
               <div>
                 <label className="block text-base font-semibold text-stone-900 mb-2">
-                  Default Rate per CFT (₹)
+                  {formData.is_rate_per_sqft ? 'Default Rate per sqft (₹)' : 'Default Rate per CFT (₹)'}
                 </label>
                 <input
                   type="number"
@@ -213,6 +218,18 @@ export default function MaterialMaster() {
                 />
                 <label htmlFor="is_active" className="text-base font-semibold text-stone-900">
                   Active
+                </label>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="is_rate_per_sqft"
+                  checked={formData.is_rate_per_sqft}
+                  onChange={(e) => setFormData({ ...formData, is_rate_per_sqft: e.target.checked })}
+                  className="w-5 h-5 text-stone-800 rounded focus:ring-2 focus:ring-stone-500"
+                />
+                <label htmlFor="is_rate_per_sqft" className="text-base font-semibold text-stone-900">
+                  Charge per sqft (₹/sqft)
                 </label>
               </div>
             </div>
@@ -257,7 +274,7 @@ export default function MaterialMaster() {
             <thead>
               <tr className="border-b-2 border-stone-300 bg-stone-200">
                 <th className="text-left py-4 px-6 text-base font-bold text-stone-900">Material</th>
-                <th className="text-left py-4 px-6 text-base font-bold text-stone-900">Rate/CFT</th>
+                <th className="text-left py-4 px-6 text-base font-bold text-stone-900">Default Rate</th>
                 <th className="text-left py-4 px-6 text-base font-bold text-stone-900">Description</th>
                 <th className="text-center py-4 px-6 text-base font-bold text-stone-900">Status</th>
                 <th className="text-right py-4 px-6 text-base font-bold text-stone-900">Actions</th>
@@ -267,7 +284,10 @@ export default function MaterialMaster() {
               {materials.map((material) => (
                 <tr key={material.id} className="border-b border-stone-200 hover:bg-stone-100 transition-colors">
                   <td className="py-4 px-6 text-base font-semibold text-stone-900">{material.name}</td>
-                  <td className="py-4 px-6 text-base text-stone-800">{formatCurrency(material.rate_per_cft)}</td>
+                  <td className="py-4 px-6 text-base text-stone-800">
+                    {formatCurrency(material.rate_per_cft)}{' '}
+                    <span className="text-sm text-gray-600">{(material as any).is_rate_per_sqft ? '/sqft' : '/cft'}</span>
+                  </td>
                   <td className="py-4 px-6 text-base text-stone-700">{material.description || '-'}</td>
                   <td className="py-4 px-6 text-center">
                     <span

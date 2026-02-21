@@ -44,11 +44,15 @@ export default function ComponentsTable({ components, onChange }: ComponentsTabl
   }
 
   // Helper function to find the appropriate rate based on ACTUAL size (after wastage)
-  function findRateForComponent(materialId: string, component: Component): number {
-    // If any dimension missing, return default material rate
+  // Returns rate and whether the rate should be treated as per-square-foot.
+  function findRateForComponent(materialId: string, component: Component): { rate: number; perSqft: boolean; tierThickness?: number | null } {
+    // If any dimension missing, return default material rate (with unit detection)
     if (!component.length || !component.width || !component.height) {
       const material = materials.find(m => m.id === materialId);
-      return material ? material.rate_per_cft : 0;
+      if (!material) return { rate: 0, perSqft: false, tierThickness: null };
+      const name = material.name.toLowerCase();
+      const perSqft = /mdf|ply|plywood|glass|rattan/.test(name);
+      return { rate: material.rate_per_cft, perSqft, tierThickness: null };
     }
 
     // Calculate ACTUAL dimensions considering wastage and wood availability
@@ -76,11 +80,19 @@ export default function ComponentsTable({ components, onChange }: ComponentsTabl
       Math.abs((thicknessInches ?? 0) - (tier.thickness ?? 0)) < 0.5
     );
 
-    if (matchingTier) return matchingTier.rate_per_cft;
+    if (matchingTier) {
+      const mat = materials.find(m => m.id === materialId) as any;
+      // Prefer explicit DB flag; fallback to name matching
+      const perSqft = mat?.is_rate_per_sqft ?? /mdf|ply|plywood|glass|rattan/.test((mat?.name || '').toLowerCase());
+      return { rate: matchingTier.rate_per_cft, perSqft, tierThickness: matchingTier.thickness };
+    }
 
     // No tier found — fall back to material default
     const material = materials.find(m => m.id === materialId);
-    return material ? material.rate_per_cft : 0;
+    if (!material) return { rate: 0, perSqft: false, tierThickness: null };
+    const matAny = material as any;
+    const perSqft = matAny?.is_rate_per_sqft ?? /mdf|ply|plywood|glass|rattan/.test(material.name.toLowerCase());
+    return { rate: material.rate_per_cft, perSqft, tierThickness: null };
   }
 
   function addRow() {
@@ -92,6 +104,7 @@ export default function ComponentsTable({ components, onChange }: ComponentsTabl
       pieces: 1,
       cft: null,
       rate: 0,
+      isRatePerSqft: false,
       material_id: null
     };
     onChange([...components, newComponent]);
@@ -103,12 +116,30 @@ export default function ComponentsTable({ components, onChange }: ComponentsTabl
 
     // Update rate when material changes
     if (field === 'material_id' && value && typeof value === 'string') {
-      updated[index].rate = findRateForComponent(value, updated[index]);
+      const { rate, perSqft, tierThickness } = findRateForComponent(value, updated[index]);
+      updated[index].rate = rate;
+      updated[index].isRatePerSqft = perSqft;
+      // If this material is charged per sqft, we don't want users to input height.
+      // Set the component height to tier thickness when available (so tier matching works),
+      // otherwise leave as-is but disable input in the UI.
+      if (perSqft) {
+        if (tierThickness != null) {
+          updated[index].height = tierThickness;
+          updated[index].actualHeight = tierThickness;
+        }
+      }
     }
 
     // Update rate when dimensions change (if material is already selected)
     if ((field === 'length' || field === 'width' || field === 'height') && updated[index].material_id) {
-      updated[index].rate = findRateForComponent(updated[index].material_id!, updated[index]);
+      const { rate, perSqft, tierThickness } = findRateForComponent(updated[index].material_id!, updated[index]);
+      updated[index].rate = rate;
+      updated[index].isRatePerSqft = perSqft;
+      if (perSqft && tierThickness != null) {
+        // ensure height stays in sync with tier thickness
+        updated[index].height = tierThickness;
+        updated[index].actualHeight = tierThickness;
+      }
     }
 
     onChange(updated);
@@ -153,7 +184,9 @@ W: ${component.width}" → ${formatNumber(actualWidth, 1)}" (+20% wastage)
 H: ${component.height}" (thickness as-is)`;
   }
 
-  const totalCFT = components.reduce((sum, comp) => sum + getCalculatedCFT(comp), 0);
+  // Totals split by unit: CFT for volume-charged materials, SQFT for area-charged materials
+  const totalCFT = components.reduce((sum, comp) => sum + (comp.isRatePerSqft ? 0 : getCalculatedCFT(comp)), 0);
+  const totalSQFT = components.reduce((sum, comp) => sum + (comp.isRatePerSqft ? getCalculatedFeet(comp) : 0), 0);
   const totalAmount = components.reduce((sum, comp) => sum + calculateComponentTotal(comp), 0);
 
   return (
@@ -233,7 +266,9 @@ H: ${component.height}" (thickness as-is)`;
                     value={component.height || ''}
                     onChange={(e) => updateComponent(index, 'height', e.target.value ? parseFloat(e.target.value) : null)}
                     className="w-20 px-2 py-1.5 text-sm text-center border border-gray-300 rounded focus:ring-2 focus:ring-stone-500 focus:border-stone-500"
-                    disabled={component.cft !== null}
+                    disabled={component.cft !== null || !!component.isRatePerSqft}
+                    placeholder={component.isRatePerSqft ? 'Determined by material' : ''}
+                    title={component.isRatePerSqft ? 'Height is determined by material/tier for sqft-charged materials' : undefined}
                   />
                 </td>
                 <td className="py-2 px-3">
@@ -288,9 +323,9 @@ H: ${component.height}" (thickness as-is)`;
                       step="0.0001"
                       value={component.cft !== null ? component.cft : ''}
                       onChange={(e) => updateComponent(index, 'cft', e.target.value ? parseFloat(e.target.value) : null)}
-                      placeholder={formatNumber(calculateCFT(component.length, component.width, component.height, component.pieces, component), 4)}
-                      className="w-24 px-2 py-1.5 text-sm text-center border border-gray-300 rounded focus:ring-2 focus:ring-stone-500 focus:border-stone-500 font-mono"
-                      title={getWastageInfo(component) || "Leave empty for auto-calculation or enter manual CFT"}
+                        placeholder={component.isRatePerSqft ? formatNumber(calculateFeet(component.length, component.width, component.pieces, component), 4) : formatNumber(calculateCFT(component.length, component.width, component.height, component.pieces, component), 4)}
+                        className="w-24 px-2 py-1.5 text-sm text-center border border-gray-300 rounded focus:ring-2 focus:ring-stone-500 focus:border-stone-500 font-mono"
+                        title={component.isRatePerSqft ? 'Auto-calculated area in sqft (leave empty for auto) or enter manual sqft' : getWastageInfo(component) || 'Leave empty for auto-calculation or enter manual CFT'}
                     />
                     {getWastageInfo(component) && (
                       <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full" title="Wastage applied"></span>
@@ -312,13 +347,18 @@ H: ${component.height}" (thickness as-is)`;
                   </select>
                 </td>
                 <td className="py-2 px-3">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={component.rate}
-                    onChange={(e) => updateComponent(index, 'rate', parseFloat(e.target.value) || 0)}
-                    className="w-24 px-2 py-1.5 text-sm text-right border border-gray-300 rounded focus:ring-2 focus:ring-stone-500 focus:border-stone-500 font-mono"
-                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={component.rate}
+                      onChange={(e) => updateComponent(index, 'rate', parseFloat(e.target.value) || 0)}
+                      className="w-24 px-2 py-1.5 text-sm text-right border border-gray-300 rounded focus:ring-2 focus:ring-stone-500 focus:border-stone-500 font-mono"
+                    />
+                    <span className="text-xs text-gray-600">
+                      {component.isRatePerSqft ? '\u20B9/sqft' : '\u20B9/cft'}
+                    </span>
+                  </div>
                 </td>
                 <td className="py-2 px-3 text-sm text-right text-gray-900 font-semibold font-mono">
                   ₹{formatNumber(calculateComponentTotal(component), 2)}
@@ -348,10 +388,13 @@ H: ${component.height}" (thickness as-is)`;
                 <td colSpan={8} className="py-3 px-3 text-right text-sm text-gray-900">
                   TOTALS:
                 </td>
-                <td className="py-3 px-3 text-sm text-center text-gray-900 font-mono">
+                <td className="py-3 px-3 text-sm text-center text-gray-900 font-mono" title="Total area (sqft)">
+                  {formatNumber(totalSQFT, 4)}
+                </td>
+                <td className="py-3 px-3 text-sm text-center text-gray-900 font-mono" title="Total volume (cft)">
                   {formatNumber(totalCFT, 4)}
                 </td>
-                <td colSpan={2}></td>
+                <td colSpan={1}></td>
                 <td className="py-3 px-3 text-sm text-right text-gray-900 font-mono">
                   ₹{formatNumber(totalAmount, 2)}
                 </td>

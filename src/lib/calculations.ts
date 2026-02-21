@@ -8,6 +8,9 @@ export interface Component {
   cft: number | null;
   rate: number;
   material_id?: string | null;
+  // When true, the `rate` is interpreted as per square-foot (₹/sqft)
+  // instead of per cubic-foot (₹/cft). Optional for backward compatibility.
+  isRatePerSqft?: boolean;
   actualLength?: number | null;
   actualWidth?: number | null;
   actualHeight?: number | null;
@@ -87,14 +90,20 @@ export function calculateActualDimensions(
   height: number | null,
   component?: Component
 ): { actualLength: number; actualWidth: number; actualHeight: number } {
-  if (!length || !width || !height) {
+  // If length or width missing we cannot compute area/volume
+  if (!length || !width) {
     return { actualLength: 0, actualWidth: 0, actualHeight: 0 };
   }
 
-  // Use manual overrides if provided, otherwise calculate
-  const actualLength = component?.actualLength ?? roundToAvailableSize(length).size;
+  // For materials charged per-square-foot, we should not round length to
+  // the available wood size (roundToAvailableSize). Use raw length unless
+  // the user provides an override via component.actualLength.
+  const actualLength = component?.actualLength ?? (
+    component?.isRatePerSqft ? length : roundToAvailableSize(length).size
+  );
+
   const actualWidth = component?.actualWidth ?? applyWidthWastage(width);
-  const actualHeight = component?.actualHeight ?? height;
+  const actualHeight = component?.actualHeight ?? height ?? 0;
 
   return { actualLength, actualWidth, actualHeight };
 }
@@ -106,13 +115,15 @@ export function calculateFeet(
   component?: Component
 ): number {
   if (!length || !width) return 0;
-  
-  // Use actual dimensions (with manual overrides if provided)
-  const actualLength = component?.actualLength ?? roundToAvailableSize(length).size;
+
+  // For area (sqft) calculations we only need length × width. If the
+  // material is charged per-square-foot, do not apply the length rounding
+  // intended for wood pieces; use the raw or overridden dimensions.
+  const actualLength = component?.actualLength ?? (component?.isRatePerSqft ? length : roundToAvailableSize(length).size);
   const actualWidth = component?.actualWidth ?? applyWidthWastage(width);
-  const actualHeight = component?.actualHeight ?? component?.height ?? 0;
-  
-  return (actualLength * actualWidth * actualHeight / 144) * pieces;
+
+  // Square feet = (Length_inches × Width_inches) / 144
+  return (actualLength * actualWidth / 144) * pieces;
 }
 
 export function calculateCFT(
@@ -141,6 +152,13 @@ export function calculateCFT(
 }
 
 export function calculateComponentTotal(component: Component): number {
+  // If component.rate is specified as per-square-foot for certain materials
+  // (MDF, ply, glass, rattan), calculate area (sqft) and multiply by rate.
+  if (component.isRatePerSqft) {
+    const sqft = calculateFeet(component.length, component.width, component.pieces, component);
+    return sqft * component.rate;
+  }
+
   const cft = component.cft !== null
     ? component.cft
     : calculateCFT(component.length, component.width, component.height, component.pieces, component);

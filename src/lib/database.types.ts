@@ -58,6 +58,7 @@ export interface Database {
           id: string
           name: string
           rate_per_cft: number
+          is_rate_per_sqft: boolean
           description: string | null
           is_active: boolean
           created_at: string
@@ -67,6 +68,7 @@ export interface Database {
           id?: string
           name: string
           rate_per_cft: number
+          is_rate_per_sqft?: boolean
           description?: string | null
           is_active?: boolean
           created_at?: string
@@ -76,6 +78,7 @@ export interface Database {
           id?: string
           name?: string
           rate_per_cft?: number
+          is_rate_per_sqft?: boolean
           description?: string | null
           is_active?: boolean
           created_at?: string
